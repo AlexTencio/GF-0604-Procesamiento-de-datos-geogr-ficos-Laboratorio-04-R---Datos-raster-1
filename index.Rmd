@@ -1,0 +1,103 @@
+---
+title: "Laboratorio #4 Alexander Tencio Moya"
+autor: "Alexander Tencio Moya"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: row
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(sf)
+library(dplyr)
+library(leaflet)
+library(raster)
+library(rgdal)
+setwd("C:/Users/lordd/Desktop/Lab 4/GF-0604-Procesamiento-de-datos-geogr-ficos-Laboratorio-04-R---Datos-raster-1")
+cr_ara_ambiguus <-
+  st_read(
+    "https://raw.githubusercontent.com/geoprocesamiento-2020i/datos/master/biodiversidad/registros-presencia/cr/cr-ara-ambiguus.geojson"
+  )
+cr_pharomachrus_mocinno<-
+  st_read("https://raw.githubusercontent.com/geoprocesamiento-2020i/datos/master/biodiversidad/registros-presencia/cr/cr_pharomachrus_mocinno.geojson")
+precipitacion <- getData("worldclim", var="prec", res=.5, lon=-84, lat=10)
+altitude <- getData("worldclim", var="alt", res=.5, lon=-84, lat=10)
+cr_altitud <- crop(altitude, extent(-86, -82.3, 8, 11.3))
+cr_precipitacion <- crop(precipitacion, extent(-86, -82.3, 8, 11.3))
+```
+
+
+
+Column {data-width=1000}
+-----------------------------------------------------------------------
+
+### Mapa de precipitación, altitud avistamientos de Lapa verde y Quetzales
+
+```{r}
+pal <- colorBin(
+  "Greens", 
+  values(cr_altitud), 
+  na.color = "transparent",
+reverse = TRUE)
+fny <- colorNumeric(
+  palette="BuPu", 
+  values(cr_precipitacion$prec1_23) , 
+  na.color = "transparent",
+reverse = FALSE)
+
+m <- leaflet() %>% 
+  addProviderTiles(providers$Esri.WorldImagery, group = "Imágenes de ESRI") %>% 
+  addProviderTiles(providers$Stamen.TonerLite, group = "Stamen Toner Lite") %>%
+  addProviderTiles(providers$OpenStreetMap.Mapnik, group = "OpenStreetMap") %>%
+  addCircleMarkers(data = cr_ara_ambiguus,
+                   stroke = F,
+                   radius = 6,
+                   fillColor = '#339938',
+                   fillOpacity = 1,
+                   group = "Lapa verde",
+                   popup = paste(cr_ara_ambiguus$locality, 
+                                 cr_ara_ambiguus$year, 
+                                 sep = '<br/>'
+                           )
+  ) %>%
+   addCircleMarkers(data = cr_pharomachrus_mocinno,
+                   stroke = F,
+                   radius = 6,
+                   fillColor = '#339981',
+                   fillOpacity = 1,
+                   group = "Quetzales",
+                   popup = paste(cr_pharomachrus_mocinno$locality, 
+                                 cr_pharomachrus_mocinno$year, 
+                                 sep = '<br/>'
+                           )
+  ) %>%
+  addRasterImage(cr_altitud, 
+                 colors = pal, 
+                 opacity = 0.5, 
+                 group = "Altitud"
+  ) %>%
+  addRasterImage(cr_precipitacion$prec1_23, 
+                 colors = fny, 
+                 opacity = 0.7, 
+                 group = "Precipitación"
+  ) %>%
+  addLayersControl(
+    baseGroups = c("OpenStreetMap", "Stamen Toner Lite", "Imágenes de ESRI"),
+    overlayGroups = c("Altitud", "Precipitación", "Lapa verde", "Quetzales"),
+    options = layersControlOptions(collapsed = FALSE)    
+  ) %>%
+  addLegend(pal = pal, 
+            values = values(cr_altitud), 
+            title = "Altitud"
+            ) %>%
+             addLegend( pal = fny, 
+            values = values(cr_precipitacion$prec1_23), 
+            title = "Precipitación"
+) %>%
+  addMiniMap(
+    toggleDisplay = TRUE,
+    position = "bottomleft",
+    tiles = providers$Stamen.TonerLite
+  )
+m
+```
